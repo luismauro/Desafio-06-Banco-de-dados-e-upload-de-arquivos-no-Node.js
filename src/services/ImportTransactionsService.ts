@@ -3,7 +3,7 @@ import csvParse from 'csv-parse';
 import fs from 'fs';
 
 import Transaction from '../models/Transaction';
-import Category from '../models/Transaction';
+import Category from '../models/Category';
 
 import TransactionsRepository from '../repositories/TransactionsRepository';
 
@@ -15,11 +15,11 @@ interface CSVTransaction {
 }
 
 class ImportTransactionsService {
-  async execute(filepath: string): Promise<Transaction[]> {
-    const transactionsRepository = getCustomRepository(TransactionsRepository);
+  async execute(filePath: string): Promise<Transaction[]> {
+    const transactionRepository = getCustomRepository(TransactionsRepository);
     const categoriesRepository = getRepository(Category);
 
-    const contactsReadStream = fs.createReadStream(filepath);
+    const contactsReadStream = fs.createReadStream(filePath);
 
     const parsers = csvParse({
       from_line: 2,
@@ -56,7 +56,7 @@ class ImportTransactionsService {
 
     const addCategoryTitles = categories
       .filter(category => !existentCategoriesTitles.includes(category))
-      .filter((value, index, self) => self.indexOf(value) == index);
+      .filter((value, index, self) => self.indexOf(value) === index);
 
     const newCategories = categoriesRepository.create(
       addCategoryTitles.map(title => ({
@@ -68,19 +68,20 @@ class ImportTransactionsService {
 
     const finalCategories = [...newCategories, ...existentCategories];
 
-    const createdTransactions = transactionsRepository.create(
+    const createdTransactions = transactionRepository.create(
       transactions.map(transaction => ({
         title: transaction.title,
         type: transaction.type,
         value: transaction.value,
         category: finalCategories.find(
-          category => category.title == transaction.category,
+          category => category.title === transaction.category,
         ),
       })),
     );
 
-    await transactionsRepository.save(createdTransactions);
-    await fs.promises.unlink(filepath);
+    await transactionRepository.save(createdTransactions);
+
+    await fs.promises.unlink(filePath);
 
     return createdTransactions;
   }
